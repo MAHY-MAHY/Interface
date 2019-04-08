@@ -21,12 +21,11 @@ private:
 public:
     Up_wind(double Tfin,double inf_x, double sup_x,double in_y,double sup_y,int nb_cell,int n_fonc);   
       // void Raffinement();
-      void solve();
+      void solve_sharp();
       void solution();
       void saveMaillage();
 
 private:
-    void init_maill();
     double fonc(double x);
     //   double get_dt();
     // double get_Dx();

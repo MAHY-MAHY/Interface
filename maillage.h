@@ -35,6 +35,7 @@ public:
     double getDxCell(int i) const;
     double getDyCell(int i) const;
     double getValueCell(int i) const;
+    void init_maill(int m_nFonc);
     void setValueCell(int i, double val);
 
 friend std::ostream & operator<<(std::ostream &os, const Maillage &M);

@@ -5,22 +5,39 @@ Up_wind::Up_wind(double Tfin,double inf_x, double sup_x,double inf_y,double sup_
 {
     m_Tfin = Tfin;
     m_nFonc = n_fonc;
-
     a =2.;// coefficient pour la fonction u
 
     m_tmp = new Maillage(inf_x,sup_x,inf_y,sup_y,nb_cell,nb_cell);
     m_M   = new Maillage(inf_x,sup_x,inf_y,sup_y,nb_cell,nb_cell);
-    init_maill();
+    m_M->init_maill(m_nFonc);
+    m_tmp->init_maill(m_nFonc);
 }
 
-void Up_wind::solve()
+void Up_wind::solve_sharp()
 {
   double t=0;
   int compt=0;
   double dt;
-  double Dx;
+  double Dx,u_x,u_y;
   double Val;
   std::vector<double> f_tmp;
+  switch(m_nFonc){
+  case 0:
+    u_x=2;
+    u_y=1;
+    break;
+  case 1 :
+    u_x=1;
+    u_y=1;
+    break;
+  case 2:
+    u_x=0;
+    u_y=0;
+    break;
+  default :
+    std::cout<<"mauvais choix de fonction" <<std::endl;
+    break;
+  }
   f_tmp.reserve(m_M->getNbCell());
   f_tmp.resize(m_M->getNbCell());
   dt=m_M->getDxCell(0)*0.25*0.5;
@@ -29,8 +46,8 @@ void Up_wind::solve()
   }
     while(t<m_Tfin){
       for(int i=0;i<m_M->getNbCell();i++){
-	f_tmp.at(i)=m_M->getValueCell(i)-dt*(psix(i,2))/m_M->getDxCell(i);
-	f_tmp.at(i)=f_tmp.at(i)-dt*psiy(i,1)/m_M->getDyCell(i);
+	f_tmp.at(i)=m_M->getValueCell(i)-dt*(psix(i,u_x))/m_M->getDxCell(i);
+	f_tmp.at(i)=f_tmp.at(i)-dt*psiy(i,u_y)/m_M->getDyCell(i);
       } 
       for(int i=0;i<m_M->getNbCell();i++){
 	Val=f_tmp.at(i);
@@ -46,6 +63,9 @@ void Up_wind::solve()
 
 void Up_wind::solution()
 {
+  std :: cout<<m_nFonc<<std::endl;
+  switch(m_nFonc){
+  case(0):
     for(int i=0; i<m_M->getNbCell();i++){
       double mil_x,mil_y;
       mil_x=m_tmp->getBinfCell_x(i)+m_tmp->getDxCell(i)*0.5-2*m_Tfin;
@@ -57,49 +77,48 @@ void Up_wind::solution()
 	m_tmp->setValueCell(i,0);
       }
     }
-  
-}
-      
+    break;
+  case(1):
+    for(int i=0; i<m_M->getNbCell();i++){
+      double mil_x,mil_y;
+      mil_x=m_tmp->getBinfCell_x(i)+m_tmp->getDxCell(i)*0.5-m_Tfin;
+      mil_y=m_tmp->getBinfCell_y(i)+m_tmp->getDyCell(i)*0.5-m_Tfin;
+      if(mil_y*mil_y+mil_x*mil_x<=0.2){
+	m_tmp->setValueCell(i,1);
+      }
+      else{
+	m_tmp->setValueCell(i,0);
+      }
+    }
+    break;
+  case(2):
+    for(int i=0; i<m_M->getNbCell();i++){ 
+      double mil_x,mil_y;
+      double tmp_x,tmp_y;
+      mil_x=m_tmp->getBinfCell_x(i)+m_tmp->getDxCell(i)*0.5;
+      mil_y=m_tmp->getBinfCell_y(i)+m_tmp->getDyCell(i)*0.5;
+      tmp_x=mil_y*std::sin(m_Tfin)+mil_x*std::cos(m_Tfin);
+      tmp_y=mil_y*std::cos(m_Tfin)-mil_x*std::sin(m_Tfin);
+      if(std::pow(tmp_x-0.5,2)+std::pow(tmp_y,2)<=0.15){
+	m_tmp->setValueCell(i,1);
+      }
+      else{
+	m_tmp->setValueCell(i,0);
+      }
+    }
+    break;
+  default:
+    std::cout<<"mauvais choux de fonction"<<std::endl;
+    break;
+
+  }
+}      
 
 //this->Raffinement();
 //std::swap(m_tmp, m_M);//Echange les deux maillages
 
+//****Calcul des delta Z****/
 
-
-
-//Initialisation du maillage et choix de la fonction initiale
-void Up_wind::init_maill()
-{
-  if(m_nFonc==0){
-    for(int i=0; i<m_M->getNbCell();i++){
-      double mil_x,mil_y;
-      mil_x=m_M->getBinfCell_x(i)+m_M->getDxCell(i)*0.5;
-      mil_y=m_M->getBinfCell_y(i)+m_M->getDyCell(i)*0.5;
-      if(mil_y<=0.5*mil_x){
-	m_M->setValueCell(i,1);
-      }
-      else{
-	m_M->setValueCell(i,0);
-      }
-    }
-  }
-  else{
-
-    for(int i=0; i<m_M->getNbCell();i++){
-      double mil;
-      mil=m_M->getBinfCell_x(i)+m_M->getDxCell(i)*0.5;
-      if(mil<-0.5 || mil>0.5){
-	m_M->setValueCell(i,0);
-      }
-      else{
-	m_M->setValueCell(i,1);
-      }
-    }
-  }
-}
-
-
-//****Calcul des delta Z****//
 double Up_wind:: delta_zmx(int i){
   double delta;
   if(((i)%m_M->getNbCellx())==0)
@@ -115,6 +134,8 @@ double Up_wind:: delta_zpx(int i){
   double delta;
   if(((i+1)%m_M->getNbCellx())==0)
     {
+      switch(m_nFonc){
+      case 0:
       if(m_M->getBinfCell_y(i) + m_M->getDyCell(i)*0.5<\
 	 0.5*(m_M->getBsupCell_x(i) + m_M->getDxCell(i)*1.5)\ 
 	 && m_M->getBinfCell_y(i) + m_M->getDyCell(i)*0.5>\
@@ -126,6 +147,16 @@ double Up_wind:: delta_zpx(int i){
 	{
 	  delta=0;
 	}
+      break;
+      case 1:
+	delta=0;
+	break;
+        case 2:
+	delta=0;
+	break;
+      default:
+	std::cout<< " mauvais choix de fonction " << std::endl;
+      }
     }
   else{
     delta =m_M->getValueCell(i+1)-m_M->getValueCell(i);
@@ -137,7 +168,19 @@ double Up_wind :: delta_zmy(int i){
   double delta;
   if(i<m_M->getNbCellx())
     {
-      delta=m_M->getValueCell(i)-1;
+      switch(m_nFonc){
+      case 0:
+	delta=m_M->getValueCell(i)-1;
+	break;
+      case 1:
+	delta=0;
+	break;
+      case 2:
+	delta=0;
+	break;
+      default:
+	std::cout<<"mauvais choix de fonction"<<std::endl;
+      }
     }
   else{
     delta=m_M->getValueCell(i)-m_M->getValueCell(i-m_M->getNbCellx());
@@ -165,6 +208,7 @@ double Up_wind:: phi(double a, double b){
   }
   else{
   phi=0;*/
+
   if(a*b>0){
     phi=2*a/(tmp1)*std::min(tmp1,tmp2);
   }
@@ -212,9 +256,18 @@ double Up_wind ::psix(int i, double u){
   double psi_p=0;
   if(i%m_M->getNbCellx()==0){
     psi_m=0;//u*m_M->getValueCell(i);
-    psi_p=u*z_moinsx(i);
+    switch(m_nFonc){
+    case 0:
+      psi_p=u*m_M->getValueCell(i);
+      break;
+    default:
+    psi_p=-(m_M->getBinfCell_y(i)+0.5*m_M->getDyCell(i))*z_moinsx(i);
+    break;
+    }
   }
   else if((i+1)%m_M->getNbCellx()==0){
+    switch(m_nFonc){
+    case 0:
     if(m_M->getBinfCell_y(i) + m_M->getDyCell(i)*0.5<\
        0.5*(m_M->getBsupCell_x(i) + m_M->getDxCell(i)*1.5)\ 
        && m_M->getBinfCell_y(i) + m_M->getDyCell(i)*0.5>\
@@ -226,11 +279,39 @@ double Up_wind ::psix(int i, double u){
       {
 	psi_p=u*m_M->getValueCell(i);
       }
+    psi_m=u*z_moinsx(i);
+    break;
+    case 1:
       psi_m=u*z_moinsx(i);
+      psi_p=u*m_M->getValueCell(i);
+      break;
+    case 2:
+      if(-m_M->getBinfCell_y(i)+0.5*m_M->getDyCell(i)>0){
+	psi_p=-(m_M->getBinfCell_y(i)+0.5*m_M->getDyCell(i))*z_moinsx(i);
+	psi_m=-(m_M->getBinfCell_y(i)+0.5*m_M->getDyCell(i))*m_M->getValueCell(i);
+      }
+      else{
+	psi_p=0;
+	psi_m=-(m_M->getBinfCell_y(i)+0.5*m_M->getDyCell(i))*z_plusx(i-1);
+      }
+      break;
+    default :
+      std::cout << "mauvais choix de fonction"<< std ::endl;
+      break;
+    }    
   }  
   else{
-    psi_p=u*z_moinsx(i);
-    psi_m=u*z_moinsx(i-1);
+     if(m_nFonc==2){
+      u=-(m_M->getBinfCell_y(i)+0.5*m_M->getDyCell(i));
+     }
+    if(u<0){
+      psi_p=u*z_plusx(i);
+      psi_m=u*z_plusx(i-1);
+	}
+	else{	
+     psi_p=u*z_moinsx(i);
+     psi_m=u*z_moinsx(i-1);
+      }
   }
   psi=psi_p-psi_m;
   return psi;
@@ -248,11 +329,13 @@ double Up_wind :: z_moinsy(int i){
   return z;    
 }
 
-double Up_wind ::psiy(int i,double u){
+double Up_wind ::psiy(int i,double u){ ///// pour le cas 2 fonction pas terminé !!!!!
   double psi;
   double psi_m=0;
   double psi_p=0;
   if(i<m_M->getNbCellx()){
+    switch(m_nFonc){
+    case 0:
       if(m_M->getBinfCell_y(i) - m_M->getDyCell(i)*0.5<\
 	 0.5*(m_M->getBinfCell_x(i) + m_M->getDxCell(i)*0.5)\ 
 	 && m_M->getBinfCell_y(i) + m_M->getDyCell(i)*0.5>\
@@ -263,14 +346,45 @@ double Up_wind ::psiy(int i,double u){
 	psi_m=u*m_M->getValueCell(i);
       }
       psi_p=u*z_moinsy(i);
+      break;
+    case 1 :
+      psi_m=0;
+      psi_p=u*z_moinsy(i);
+      break;
+    case 2: //// voir le cas 2 pas terminé ici !!!
+      u=m_M->getBinfCell_x(i)+0.5*m_M->getDxCell(i);
+	if(u<0){
+	  psi_m=u*z_plusy(i-1);
+	  psi_p=u*z_plusy(i);
+	}
+	else{
+	  psi_m=u*z_moinsy(i-1);
+	  psi_p=u*z_moinsy(i);
+	} 
+      break;
+    default :
+      std::cout<<"mauvais choix de fonction";
+      break;
+    }
   }
   else if(i+m_M->getNbCellx()>m_M->getNbCell()-1){
     psi_p=u*m_M->getValueCell(i);
     psi_m=u*z_moinsy(i);
   }  
   else{
+    double u1;
+    if(m_nFonc==2){
+      u=m_M->getBinfCell_x(i)+0.5*m_M->getDxCell(i);
+    }
+    if(u<0){
+      psi_p=u*z_plusy(i);
+      psi_m=u*z_plusy(i-1);
+	}
+    else{
+
     psi_p=u*z_moinsy(i);
     psi_m=u*z_moinsy(i-m_M->getNbCellx());
+    }
   }
   psi=psi_p-psi_m;
   return psi;
@@ -296,12 +410,12 @@ void Up_wind::saveMaillage()
 	  {
 	    myfile3 << " ";
 	    myfile2 << " ";
-	    myfile << " ";
+	    myfile  << " ";
 	  }
       }
-    myfile << std::endl;
+    myfile  << std::endl;
     myfile2 << std::endl;
-    myfile3 << std :: endl;
+    myfile3 << std::endl;
     myfile.close();
     myfile2.close();
     myfile3.close();

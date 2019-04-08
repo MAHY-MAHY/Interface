@@ -1,5 +1,5 @@
 #include "maillage.h"
-
+#include <cmath>
 //Constructeurs de maillage
 Maillage::Maillage()
 {
@@ -141,6 +141,59 @@ void Maillage::setValueCell(int i, double val)
 {
     m_V.at(i)->setValue(val);
 }
+
+void Maillage::init_maill(int m_nFonc)
+{
+  switch(m_nFonc){
+  case 0:
+    for(int i=0; i<getNbCell();i++){
+      double mil_x,mil_y;
+      mil_x=getBinfCell_x(i)+getDxCell(i)*0.5;
+      mil_y=getBinfCell_y(i)+getDyCell(i)*0.5;
+      if(mil_y<=0.5*mil_x){
+	setValueCell(i,1);
+      }
+      else{
+	setValueCell(i,0);
+      }
+    }
+    break;
+  case 1 :
+    for(int i=0; i<getNbCell();i++){
+      double mil_x,mil_y;
+      mil_x=getBinfCell_x(i)+getDxCell(i)*0.5;
+      mil_y=getBinfCell_y(i)+getDyCell(i)*0.5;
+      if(mil_y*mil_y+mil_x*mil_x<=0.2){
+	setValueCell(i,1);
+      }
+      else{
+	setValueCell(i,0);
+      }
+    }
+    break;
+  case 2:
+    for(int i=0; i<getNbCell();i++){ 
+      double mil_x,mil_y;
+      mil_x=getBinfCell_x(i)+getDxCell(i)*0.5-0.5;
+      mil_y=getBinfCell_y(i)+getDyCell(i)*0.5;
+      if(std::pow(mil_x,2)+std::pow(mil_y,2)<=0.15){
+	setValueCell(i,1);	
+      }
+      else{
+	setValueCell(i,0);
+      }
+    }
+    break;
+  default:
+    std::cout<<"mauvais choux de fonction"<<std::endl;
+    break;
+  }
+}
+
+
+
+
+
 
 // surcharge de l'operateur affichage
 std::ostream &operator<<(std::ostream &os, const Maillage &M)

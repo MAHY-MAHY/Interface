@@ -7,9 +7,24 @@
 int main()
 {
   //Maillage test(0,1,0,1,10);
-  Up_wind test2(2,0,2,0,2,200,0);//les paramètres sont(Tfin, Xdebut,Xfin, nombre de point initial du mailage,taile minimal d'une cellule, choix de la fonction initial,saut maximum ou raffiner)
+  double a_x,a_y , b_x, b_y,T_f;
+  int nb_cel, init ,methode;
+  std::cout << "lire le temps final"<<std::endl;
+  std::cin >> T_f;
+  std::cout<<" lire borne inf de x et borne sup de x"<<std::endl;
+  std::cin>>a_x >>b_x;
+  std::cout<<" lire borne inf de y et borne sup de y"<<std::endl;
+  std::cin>>a_y >>b_y;
+  std::cout<<" Entrer 0 pour droite 1 pour cercle en rotation 2 pour cercle en translation "<<std::endl;
+  std::cin>>init;
+  std::cout<<" Entrer 0 pour sharp 1 pour diffuse "<<std::endl;
+  std::cin>>methode;
+  std::cout<<" le nombre de cellule en X "<<std::endl;
+  std::cin>>nb_cel;
+
+  Up_wind test2(T_f,a_x,b_x,a_y,b_y,nb_cel,init);//les paramètres sont(Tfin, Xdebut,Xfin, nombre de point initial du mailage,taile minimal d'une cellule, choix de la fonction initial,saut maximum ou raffiner)
   //std::cout << test <<std::endl;
-   test2.solve();
+   test2.solve_sharp();
    test2.solution();
    test2.saveMaillage();
    
