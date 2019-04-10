@@ -1,12 +1,13 @@
 #include "up_wind.h"
+#include <omp.h>
 #include <cmath>
 
-Up_wind::Up_wind(double Tfin,double inf_x, double sup_x,double inf_y,double sup_y,int nb_cell, int n_fonc)
+Up_wind::Up_wind(double Tfin,double inf_x, double sup_x,double inf_y,double sup_y,int nb_cell, int n_fonc,double CFL)
 {
     m_Tfin = Tfin;
     m_nFonc = n_fonc;
     a =2.;// coefficient pour la fonction u
-
+    m_CFL=CFL;
     m_tmp = new Maillage(inf_x,sup_x,inf_y,sup_y,nb_cell,nb_cell);
     m_M   = new Maillage(inf_x,sup_x,inf_y,sup_y,nb_cell,nb_cell);
     m_M->init_maill(m_nFonc);
@@ -40,15 +41,19 @@ void Up_wind::solve_sharp()
   }
   f_tmp.reserve(m_M->getNbCell());
   f_tmp.resize(m_M->getNbCell());
-  dt=m_M->getDxCell(0)*0.25*0.5;
-  for(int i=0;i<m_M->getNbCell();i++){
-    f_tmp.at(i)=0;
-  }
+  dt=m_M->getDxCell(0)*m_CFL*0.5;
+
+# pragma omp parallel for shared(f_tmp)
+	for(int i=0;i<m_M->getNbCell();i++){
+	  f_tmp.at(i)=0;
+	}
     while(t<m_Tfin){
-      for(int i=0;i<m_M->getNbCell();i++){
-	f_tmp.at(i)=m_M->getValueCell(i)-dt*(psix(i,u_x))/m_M->getDxCell(i);
-	f_tmp.at(i)=f_tmp.at(i)-dt*psiy(i,u_y)/m_M->getDyCell(i);
-      } 
+# pragma omp parallel for shared(f_tmp)      
+	for(int i=0;i<m_M->getNbCell();i++){
+	  f_tmp.at(i)=m_M->getValueCell(i)-dt*(psix(i,u_x))/m_M->getDxCell(i);
+	  f_tmp.at(i)=f_tmp.at(i)-dt*psiy(i,u_y)/m_M->getDyCell(i);
+	}      
+# pragma omp paralel for shared(f_tmp,m_M) private(Val)
       for(int i=0;i<m_M->getNbCell();i++){
 	Val=f_tmp.at(i);
 	m_M->setValueCell(i,Val);
@@ -66,6 +71,7 @@ void Up_wind::solution()
   std :: cout<<m_nFonc<<std::endl;
   switch(m_nFonc){
   case(0):
+# pragma omp paralel for shared(m_tmp)
     for(int i=0; i<m_M->getNbCell();i++){
       double mil_x,mil_y;
       mil_x=m_tmp->getBinfCell_x(i)+m_tmp->getDxCell(i)*0.5-2*m_Tfin;
@@ -79,6 +85,7 @@ void Up_wind::solution()
     }
     break;
   case(1):
+# pragma omp paralel for shared(m_tmp)
     for(int i=0; i<m_M->getNbCell();i++){
       double mil_x,mil_y;
       mil_x=m_tmp->getBinfCell_x(i)+m_tmp->getDxCell(i)*0.5-m_Tfin;
@@ -92,6 +99,7 @@ void Up_wind::solution()
     }
     break;
   case(2):
+# pragma omp paralel for shared(m_tmp)
     for(int i=0; i<m_M->getNbCell();i++){ 
       double mil_x,mil_y;
       double tmp_x,tmp_y;
@@ -203,18 +211,34 @@ double Up_wind:: phi(double a, double b){
   double phi;
   double tmp1=std::abs(a);
   double tmp2=std::abs(b);
-  /*if(a*b>0){
-    phi=a/(tmp1)*(std::max(std::min(tmp1,2*tmp2),std::min(2*tmp1,tmp2)));
-  }
-  else{
-  phi=0;*/
-
-  if(a*b>0){
-    phi=2*a/(tmp1)*std::min(tmp1,tmp2);
-  }
-  else{
-  phi=0;
-    
+  switch(m_nFonc){
+  case 2:
+    if(a*b>0){
+      phi=a/(tmp1)*(std::max(std::min(tmp1,2*tmp2),std::min(2*tmp1,tmp2)));
+    }
+    else{
+      phi=0;
+    }
+    break;
+  case 1:
+    if(a*b>0){
+      phi=a/(tmp1)*(std::max(std::min(tmp1,2*tmp2),std::min(2*tmp1,tmp2)));
+    }
+    else{
+      phi=0;
+    }
+    break;
+  case 0:
+    if(a*b>0){
+      phi=2*a/(tmp1)*std::min(tmp1,tmp2);
+    }
+    else{
+      phi=0;    
+    }
+    break;
+  default:
+    std::cout<<"mauvais choix de fonction"<<std::endl;
+    break;
   }
   return phi;
 }
@@ -254,6 +278,9 @@ double Up_wind ::psix(int i, double u){
   double psi;
   double psi_m=0;
   double psi_p=0;
+  if(m_nFonc==2){
+    u=m_M->getBinfCell_y(i)+0.5*m_M->getDyCell(i);
+      }
   if(i%m_M->getNbCellx()==0){
     psi_m=0;//u*m_M->getValueCell(i);
     switch(m_nFonc){
@@ -319,7 +346,7 @@ double Up_wind ::psix(int i, double u){
 
 double Up_wind :: z_plusy(int i){
   double z;
-  z=m_M->getValueCell(i+1)-0.5*m_M->getDyCell(i+1)*sjy(i+1);
+  z=m_M->getValueCell(i+m_M->getNbCellx())-0.5*m_M->getDyCell(i+m_M->getNbCellx())*sjy(i+m_M->getNbCellx());
   return z;    
 }
 
@@ -351,14 +378,14 @@ double Up_wind ::psiy(int i,double u){ ///// pour le cas 2 fonction pas terminé
       psi_m=0;
       psi_p=u*z_moinsy(i);
       break;
-    case 2: //// voir le cas 2 pas terminé ici !!!
+    case 2: //// voir le cas 2 pas terminé ici !!! u*z_plusy(i-1)
       u=m_M->getBinfCell_x(i)+0.5*m_M->getDxCell(i);
 	if(u<0){
-	  psi_m=u*z_plusy(i-1);
+	  psi_m=0;
 	  psi_p=u*z_plusy(i);
 	}
 	else{
-	  psi_m=u*z_moinsy(i-1);
+	  psi_m=0;
 	  psi_p=u*z_moinsy(i);
 	} 
       break;
@@ -368,6 +395,9 @@ double Up_wind ::psiy(int i,double u){ ///// pour le cas 2 fonction pas terminé
     }
   }
   else if(i+m_M->getNbCellx()>m_M->getNbCell()-1){
+    if(m_nFonc==2){
+      u=m_M->getBinfCell_x(i)+0.5*m_M->getDxCell(i);
+	}
     psi_p=u*m_M->getValueCell(i);
     psi_m=u*z_moinsy(i);
   }  
@@ -378,7 +408,7 @@ double Up_wind ::psiy(int i,double u){ ///// pour le cas 2 fonction pas terminé
     }
     if(u<0){
       psi_p=u*z_plusy(i);
-      psi_m=u*z_plusy(i-1);
+      psi_m=u*z_plusy(i-m_M->getNbCellx());
 	}
     else{
 

@@ -16,10 +16,11 @@ private:
     double m_Tfin;
     int m_nFonc;
     double a;
+    double m_CFL;
 
 
 public:
-    Up_wind(double Tfin,double inf_x, double sup_x,double in_y,double sup_y,int nb_cell,int n_fonc);   
+    Up_wind(double Tfin,double inf_x, double sup_x,double in_y,double sup_y,int nb_cell,int n_fonc,double CFL);   
       // void Raffinement();
       void solve_sharp();
       void solution();

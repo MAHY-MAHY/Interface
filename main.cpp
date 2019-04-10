@@ -1,4 +1,7 @@
 #include <iostream>
+#include <cstdio>
+#include <ctime>
+#include <omp.h>
 
 #include "cellule.h"
 #include "maillage.h"
@@ -7,7 +10,7 @@
 int main()
 {
   //Maillage test(0,1,0,1,10);
-  double a_x,a_y , b_x, b_y,T_f;
+  double a_x,a_y , b_x, b_y,T_f,montre1,montre2,CFL;
   int nb_cel, init ,methode;
   std::cout << "lire le temps final"<<std::endl;
   std::cin >> T_f;
@@ -21,10 +24,17 @@ int main()
   std::cin>>methode;
   std::cout<<" le nombre de cellule en X "<<std::endl;
   std::cin>>nb_cel;
+  std::cout<<" Entrer le nombre CFL  "<<std::endl;
+  std::cin>>CFL;
 
-  Up_wind test2(T_f,a_x,b_x,a_y,b_y,nb_cel,init);//les paramètres sont(Tfin, Xdebut,Xfin, nombre de point initial du mailage,taile minimal d'une cellule, choix de la fonction initial,saut maximum ou raffiner)
+  Up_wind test2(T_f,a_x,b_x,a_y,b_y,nb_cel,init,CFL);//les paramètres sont(Tfin, Xdebut,Xfin, nombre de point initial du mailage,taile minimal d'une cellule, choix de la fonction initial,saut maximum ou raffiner)
   //std::cout << test <<std::endl;
-   test2.solve_sharp();
+  montre1 = omp_get_wtime();
+
+  std::cout<< "ok"<< std::endl;
+  test2.solve_sharp();
+  montre2 =omp_get_wtime();
+  std::cout<<montre2-montre1<<std::endl;
    test2.solution();
    test2.saveMaillage();
    
