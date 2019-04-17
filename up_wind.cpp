@@ -2,14 +2,16 @@
 #include <omp.h>
 #include <cmath>
 
-Up_wind::Up_wind(double Tfin,double inf_x, double sup_x,double inf_y,double sup_y,int nb_cell, int n_fonc,double CFL)
+Up_wind::Up_wind(double Tfin,double inf_x, double sup_x,double inf_y,double sup_y,int nb_cell,
+		 int n_fonc,double CFL,int CL)
 {
     m_Tfin = Tfin;
     m_nFonc = n_fonc;
     a =2.;// coefficient pour la fonction u
     m_CFL=CFL;
-    m_tmp = new Maillage(inf_x,sup_x,inf_y,sup_y,nb_cell,nb_cell);
-    m_M   = new Maillage(inf_x,sup_x,inf_y,sup_y,nb_cell,nb_cell);
+    m_CL=CL;
+    m_tmp = new Maillage(inf_x,sup_x,inf_y,sup_y,nb_cell,nb_cell,m_CL);
+    m_M   = new Maillage(inf_x,sup_x,inf_y,sup_y,nb_cell,nb_cell,m_CL);
     m_M->init_maill(m_nFonc);
     m_tmp->init_maill(m_nFonc);
 }
@@ -44,26 +46,26 @@ void Up_wind::solve_sharp()
   dt=m_M->getDxCell(0)*m_CFL*0.5;
 
 # pragma omp parallel for shared(f_tmp)
-	for(int i=0;i<m_M->getNbCell();i++){
-	  f_tmp.at(i)=0;
-	}
-    while(t<m_Tfin){
+  for(int i=0;i<m_M->getNbCell();i++){
+    f_tmp.at(i)=0;
+  }
+  while(t<m_Tfin){
 # pragma omp parallel for shared(f_tmp)      
-	for(int i=0;i<m_M->getNbCell();i++){
-	  f_tmp.at(i)=m_M->getValueCell(i)-dt*(psix(i,u_x))/m_M->getDxCell(i);
-	  f_tmp.at(i)=f_tmp.at(i)-dt*psiy(i,u_y)/m_M->getDyCell(i);
-	}      
-# pragma omp paralel for shared(f_tmp,m_M) private(Val)
-      for(int i=0;i<m_M->getNbCell();i++){
-	Val=f_tmp.at(i);
-	m_M->setValueCell(i,Val);
-      }
-      t=t+dt;
-      if(compt%25==0){
-	std::cout<<t<<std::endl;
-      }
-      compt=compt+1;
-    }   
+    for(int i=0;i<m_M->getNbCell();i++){
+      f_tmp.at(i)=m_M->getValueCell(i)-dt*(psix(i,u_x))/m_M->getDxCell(i);
+      f_tmp.at(i)=f_tmp.at(i)-dt*psiy(i,u_y)/m_M->getDyCell(i);
+    }      
+# pragma omp parallel for shared(f_tmp) private(Val)
+    for(int i=0;i<m_M->getNbCell();i++){
+      Val=f_tmp.at(i);
+      m_M->setValueCell(i,Val);
+    }
+    t=t+dt;
+    if(compt%25==0){
+      std::cout<<t<<std::endl;
+    }
+    compt=compt+1;
+  }   
 }
 
 void Up_wind::solution()
@@ -71,7 +73,7 @@ void Up_wind::solution()
   std :: cout<<m_nFonc<<std::endl;
   switch(m_nFonc){
   case(0):
-# pragma omp paralel for shared(m_tmp)
+# pragma omp parallel for
     for(int i=0; i<m_M->getNbCell();i++){
       double mil_x,mil_y;
       mil_x=m_tmp->getBinfCell_x(i)+m_tmp->getDxCell(i)*0.5-2*m_Tfin;
@@ -85,7 +87,7 @@ void Up_wind::solution()
     }
     break;
   case(1):
-# pragma omp paralel for shared(m_tmp)
+# pragma omp parallel for
     for(int i=0; i<m_M->getNbCell();i++){
       double mil_x,mil_y;
       mil_x=m_tmp->getBinfCell_x(i)+m_tmp->getDxCell(i)*0.5-m_Tfin;
@@ -99,7 +101,7 @@ void Up_wind::solution()
     }
     break;
   case(2):
-# pragma omp paralel for shared(m_tmp)
+# pragma omp parallel for
     for(int i=0; i<m_M->getNbCell();i++){ 
       double mil_x,mil_y;
       double tmp_x,tmp_y;
@@ -144,9 +146,9 @@ double Up_wind:: delta_zpx(int i){
     {
       switch(m_nFonc){
       case 0:
-      if(m_M->getBinfCell_y(i) + m_M->getDyCell(i)*0.5<\
-	 0.5*(m_M->getBsupCell_x(i) + m_M->getDxCell(i)*1.5)\ 
-	 && m_M->getBinfCell_y(i) + m_M->getDyCell(i)*0.5>\
+      if(m_M->getBinfCell_y(i) + m_M->getDyCell(i)*0.5<
+	 0.5*(m_M->getBsupCell_x(i) + m_M->getDxCell(i)*1.5)
+	 && m_M->getBinfCell_y(i) + m_M->getDyCell(i)*0.5>
 	 0.5*( m_M->getBinfCell_x(i) + m_M->getDxCell(i)*0.5))
 	{
 	  delta=1;
@@ -295,9 +297,9 @@ double Up_wind ::psix(int i, double u){
   else if((i+1)%m_M->getNbCellx()==0){
     switch(m_nFonc){
     case 0:
-    if(m_M->getBinfCell_y(i) + m_M->getDyCell(i)*0.5<\
-       0.5*(m_M->getBsupCell_x(i) + m_M->getDxCell(i)*1.5)\ 
-       && m_M->getBinfCell_y(i) + m_M->getDyCell(i)*0.5>\
+    if(m_M->getBinfCell_y(i) + m_M->getDyCell(i)*0.5<
+       0.5*(m_M->getBsupCell_x(i) + m_M->getDxCell(i)*1.5) 
+       && m_M->getBinfCell_y(i) + m_M->getDyCell(i)*0.5>
        0.5*( m_M->getBinfCell_x(i) + m_M->getDxCell(i)*0.5))
       {
 	psi_p=u;
@@ -363,9 +365,9 @@ double Up_wind ::psiy(int i,double u){ ///// pour le cas 2 fonction pas terminé
   if(i<m_M->getNbCellx()){
     switch(m_nFonc){
     case 0:
-      if(m_M->getBinfCell_y(i) - m_M->getDyCell(i)*0.5<\
-	 0.5*(m_M->getBinfCell_x(i) + m_M->getDxCell(i)*0.5)\ 
-	 && m_M->getBinfCell_y(i) + m_M->getDyCell(i)*0.5>\
+      if(m_M->getBinfCell_y(i) - m_M->getDyCell(i)*0.5<
+	 0.5*(m_M->getBinfCell_x(i) + m_M->getDxCell(i)*0.5) 
+	 && m_M->getBinfCell_y(i) + m_M->getDyCell(i)*0.5>
 	 0.5*( m_M->getBinfCell_x(i) + m_M->getDxCell(i)*0.5)){
 	psi_m=u;//*m_M->getValueCell(i);
       }
@@ -433,7 +435,7 @@ void Up_wind::saveMaillage()
     for(int i=0; i<m_M->getNbCell(); ++i)
       {
 	myfile <<m_M->getValueCell(i) << "\n";
-	myfile2 << m_M->getBinfCell_x(i) + m_M->getDxCell(i)*0.5 << "   " \
+	myfile2 << m_M->getBinfCell_x(i) + m_M->getDxCell(i)*0.5 << "   " 
 		<< m_M->getBinfCell_y(i) + m_M->getDyCell(i)*0.5 << "\n" ;
 	myfile3 <<m_tmp->getValueCell(i) << "\n";
 	if(i<m_M->getNbCell() - 1)

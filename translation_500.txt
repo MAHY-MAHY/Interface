@@ -1,0 +1,6 @@
+export OMP_NUM_THREADS=16
+
+
+echo 2.5 -1 1 -1 1 1 1 500 0.2 0 1.8 | ./exe
+
+echo 500 | python plot.py

@@ -6,7 +6,7 @@ Maillage::Maillage()
     nb_cellules=0;
 }
 
-Maillage::Maillage(double binf_x, double bsup_x,double binf_y,double bsup_y, int nb_cx,int nb_cy)
+Maillage::Maillage(double binf_x, double bsup_x,double binf_y,double bsup_y, int nb_cx,int nb_cy,int CondL)
 {
     double dx;
     double dy;
@@ -15,9 +15,10 @@ Maillage::Maillage(double binf_x, double bsup_x,double binf_y,double bsup_y, int
     nb_celly=nb_cy;
     nb_cellx=nb_cx;
     nb_cellules=nb_cellx*nb_celly;
+    CL=CondL;
     for(int j=0;j<nb_celly;j++){
       for (int i=0;i<nb_cellx;i++){
-	Cellule *tmp =new Cellule(binf_x + i*dx,binf_x + (i+1)*dx,binf_y+j*dy,binf_y+(j+1)*dy,0);
+	Cellule *tmp =new Cellule(binf_x + i*dx,binf_x + (i+1)*dx,binf_y+j*dy,binf_y+(j+1)*dy,CL);
         m_V.push_back(tmp);
         if(i==nb_cellx-1){
 	  tmp->setBsup_x(bsup_x);
@@ -135,6 +136,67 @@ double Maillage::getValueCell(int i) const
 {
     return m_V.at(i)->getValue();
 }
+double Maillage:: getValxy(int i,int j)const
+{
+  int i_tmp;
+  int j_tmp;
+  if(CL==0){
+     if(i<0){
+       i_tmp=i+getNbCellx();
+     }
+     else if(i>=getNbCellx()){
+       i_tmp=i-getNbCellx();
+     }
+     else{
+       i_tmp=i;
+     }
+     if(j<0){
+       j_tmp=j+getNbCelly();
+     }
+     else if(j>=getNbCelly()){
+       j_tmp=j-getNbCelly();
+     }
+     else{
+       j_tmp=j;
+     }
+     j_tmp=j_tmp*getNbCellx();
+  }
+  else if (CL==1)
+    { ///// pb sur les conditions de neumann!!!!
+	  if(i>=getNbCellx()){
+	    i_tmp=getNbCellx()-1;
+	  }
+	  else if(i<0){
+	    i_tmp=0;
+	    if( j>=0){
+	      j_tmp=getNbCelly()-1;
+	    }
+	  }
+	  else{
+	    i_tmp=i;
+	  }
+	  if(j>=getNbCelly())
+	    {
+	      j_tmp=getNbCelly()-1;
+	    }
+	  else if(j<0)
+	    {
+	      j_tmp=0;
+	      if(i==-1){
+		i_tmp=0;
+	      }
+	      else if(i>=0){
+		i_tmp=getNbCellx()-1;
+	      }
+	    }
+	  else if(i>=0)
+	    {
+	      j_tmp=j;
+	    }   
+      j_tmp=j_tmp*getNbCellx();   
+    }
+  return m_V.at(i_tmp+j_tmp)->getValue();
+}
 
 //modifie la valeur de la cellule i
 void Maillage::setValueCell(int i, double val)
@@ -146,7 +208,8 @@ void Maillage::init_maill(int m_nFonc)
 {
   switch(m_nFonc){
   case 0:
-    for(int i=0; i<getNbCell();i++){
+    setValueCell(0,0.5);
+    for(int i=1; i<getNbCell();i++){
       double mil_x,mil_y;
       mil_x=getBinfCell_x(i)+getDxCell(i)*0.5;
       mil_y=getBinfCell_y(i)+getDyCell(i)*0.5;
@@ -176,8 +239,21 @@ void Maillage::init_maill(int m_nFonc)
       double mil_x,mil_y;
       mil_x=getBinfCell_x(i)+getDxCell(i)*0.5-0.5;
       mil_y=getBinfCell_y(i)+getDyCell(i)*0.5;
-      if(std::pow(mil_x,2)+std::pow(mil_y,2)<=0.15){
+      if(std::pow(mil_x,2)+std::pow(mil_y,2)<=0.2){
 	setValueCell(i,1);	
+      }
+      else{
+	setValueCell(i,0);
+      }
+    }
+    break;
+  case 3 :
+    for(int i=0; i<getNbCell();i++){
+      double mil_x,mil_y;
+      mil_x=getBinfCell_x(i)+getDxCell(i)*0.5;
+      mil_y=getBinfCell_y(i)+getDyCell(i)*0.5;
+      if((mil_y-0.5)*(mil_y-0.5)+(mil_x-0.75)*(mil_x-0.75)<=0.03){
+	setValueCell(i,1);
       }
       else{
 	setValueCell(i,0);

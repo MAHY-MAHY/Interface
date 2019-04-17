@@ -10,7 +10,7 @@ class Maillage
 {
 public:
     Maillage();
-    Maillage(double binf_x, double bsup_x,double binf_y,double bsup_y, int nb_cellx,int nb_celly);
+    Maillage(double binf_x, double bsup_x,double binf_y,double bsup_y, int nb_cellx,int nb_celly,int CL);
     Maillage(const Maillage &m); //par recopie
 
 
@@ -22,7 +22,6 @@ public:
     // METHDOES DE CONSULTATION
     int consult_position(int position, int & valeur) const;
     // SURCHARGE D’OPERATEUR
-    // Donner la valeur de u_i^n dans maille d’indice=position
     double operator[] (int position);
 
     int getNbCell() const;
@@ -37,6 +36,7 @@ public:
     double getValueCell(int i) const;
     void init_maill(int m_nFonc);
     void setValueCell(int i, double val);
+    double getValxy(int i,int j) const;
 
 friend std::ostream & operator<<(std::ostream &os, const Maillage &M);
 
@@ -44,6 +44,7 @@ protected:
     int nb_cellules;
     int nb_cellx;
     int nb_celly;
+    int CL;
     // Nombre de cellules du maillage.
     std::vector<Cellule*> m_V;
 };
